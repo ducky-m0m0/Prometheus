@@ -2,52 +2,299 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { OrbitControls } from "@react-three/drei"
-import { useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
+
+/* ---------------- MODULE DATA ---------------- */
+
+const MODULES = [
+  {
+    name: "Behavioral Mapping",
+    role: "Behavioral baseline and drift detection",
+    description:
+      "Maps real user behavior over time and detects subtle routine drift before security signals appear.",
+    detects: [
+      "Sequence deviations in trusted workflows",
+      "Changes in timing, hesitation, and action rhythm",
+      "Privilege use that drifts from historical behavior",
+    ],
+    matters:
+      "This layer identifies the earliest signs that normal human-system interaction is beginning to shift in ways traditional controls ignore.",
+    signals: ["Access timing", "Sequence anomalies", "Hesitation patterns"],
+    distance: 15,
+    size: 0.7,
+    speed: 0.5,
+    color: "#00e5ff",
+  },
+  {
+    name: "Intent Recognition",
+    role: "Intent-to-action alignment modeling",
+    description:
+      "Infers user intent and detects when system actions diverge from it. Authorization does not equal alignment.",
+    detects: [
+      "Actions that no longer match expected task flow",
+      "Permission use without goal continuity",
+      "Behavior that appears valid but intent-misaligned",
+    ],
+    matters:
+      "This is where Prometheus distinguishes permission from true alignment and identifies when unknown consent begins emerging inside trusted systems.",
+    signals: ["Historical purpose", "Action continuity", "Permission context"],
+    distance: 18,
+    size: 0.9,
+    speed: 0.4,
+    color: "#ffae00",
+  },
+  {
+    name: "Predictive Layer",
+    role: "Pre-incident condition forecasting",
+    description:
+      "Identifies conditions where human decisions degrade under pressure and forecasts pre-incident risk windows.",
+    detects: [
+      "Accumulating drift under time pressure",
+      "Context patterns associated with degraded judgment",
+      "Emerging breach-likelihood windows before compromise",
+    ],
+    matters:
+      "This layer turns behavioral and intent signals into forward-looking risk, showing when a legitimate user is becoming a likely breach path.",
+    signals: ["Workload pressure", "Urgency patterns", "Decision degradation"],
+    distance: 21,
+    size: 1.1,
+    speed: 0.3,
+    color: "#7cff00",
+  },
+  {
+    name: "Cognitive Engine",
+    role: "Consent alignment inference engine",
+    description:
+      "Fuses behavioral, contextual, and system signals to model consent alignment and detect consent drift.",
+    detects: [
+      "Consent degradation across time and context",
+      "Misalignment between inferred intent and exercised permissions",
+      "The moment trusted interaction begins becoming breach-enabling",
+    ],
+    matters:
+      "This is the reasoning core of Prometheus. It synthesizes behavioral, contextual, and system signals into a dynamic model of consent alignment.",
+    signals: ["Intent proxies", "Context pressure", "System affordances"],
+    distance: 25,
+    size: 1.3,
+    speed: 0.2,
+    color: "#ff4d6d",
+  },
+]
+
+type SelectedPlanetState = {
+  group: THREE.Group
+  name: string
+  role: string
+  description: string
+  detects: string[]
+  matters: string
+  signals: string[]
+  color: string
+} | null
+
+/* ---------------- PRELOADER ---------------- */
+
+function Preloader({
+  visible,
+  progress,
+}: {
+  visible: boolean
+  progress: number
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background:
+          "radial-gradient(circle at center, rgba(8,12,26,0.98) 0%, rgba(2,3,10,1) 55%, rgba(0,0,0,1) 100%)",
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? "auto" : "none",
+        transition: "opacity 0.9s ease",
+      }}
+    >
+      <div
+        style={{
+          width: "min(560px, 82vw)",
+          textAlign: "center",
+          color: "white",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "clamp(2.8rem, 7vw, 5.8rem)",
+            fontWeight: 700,
+            letterSpacing: "10px",
+            textTransform: "uppercase",
+            textShadow: "0 0 28px rgba(255,0,0,0.18)",
+            marginBottom: "22px",
+          }}
+        >
+          Prometheus
+        </div>
+
+        <div
+          style={{
+            fontSize: "0.9rem",
+            letterSpacing: "4px",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.68)",
+            marginBottom: "24px",
+          }}
+        >
+          Initializing Pre-Breach Intelligence
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            height: "8px",
+            borderRadius: "999px",
+            background: "rgba(255,255,255,0.08)",
+            overflow: "hidden",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.08) inset",
+          }}
+        >
+          <div
+            style={{
+              width: `${progress}%`,
+              height: "100%",
+              borderRadius: "999px",
+              background:
+                "linear-gradient(90deg, rgba(255,40,40,0.9) 0%, rgba(137,255,115,0.95) 100%)",
+              boxShadow:
+                "0 0 18px rgba(255,60,60,0.35), 0 0 28px rgba(137,255,115,0.18)",
+              transition: "width 0.18s linear",
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            marginTop: "14px",
+            fontSize: "0.86rem",
+            color: "rgba(255,255,255,0.62)",
+            letterSpacing: "2px",
+          }}
+        >
+          {progress}%
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /* ---------------- CORE ---------------- */
 
-function Core() {
-  const ref = useRef<any>(null)
+function Core({ bootPhase }: { bootPhase: number }) {
+  const ref = useRef<THREE.Mesh>(null)
+  const haloRef = useRef<THREE.Mesh>(null)
 
-  useFrame(() => {
-    if (!ref.current) return
-    ref.current.rotation.x += 0.002
-    ref.current.rotation.y += 0.004
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime()
+
+    if (ref.current) {
+      ref.current.rotation.x += 0.0012
+      ref.current.rotation.y += 0.0035
+
+      const targetScale = bootPhase >= 2 ? 1 : bootPhase === 1 ? 0.72 : 0.4
+      ref.current.scale.x += (targetScale - ref.current.scale.x) * 0.06
+      ref.current.scale.y += (targetScale - ref.current.scale.y) * 0.06
+      ref.current.scale.z += (targetScale - ref.current.scale.z) * 0.06
+    }
+
+    if (haloRef.current) {
+      const pulse = 1 + Math.sin(t * 1.8) * 0.05
+      const targetScale =
+        bootPhase >= 2 ? 1 * pulse : bootPhase === 1 ? 0.55 * pulse : 0.2
+
+      haloRef.current.scale.setScalar(
+        THREE.MathUtils.lerp(haloRef.current.scale.x, targetScale, 0.08)
+      )
+    }
   })
 
   return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[2, 64, 64]} />
-      <meshStandardMaterial
-        color="#ff0000"
-        emissive="#ff0000"
-        emissiveIntensity={2}
-        wireframe
-      />
-    </mesh>
+    <group>
+      <mesh ref={ref}>
+        <sphereGeometry args={[2, 64, 64]} />
+        <meshStandardMaterial
+          color="#ff1a1a"
+          emissive="#8a0000"
+          emissiveIntensity={1.2}
+          wireframe
+        />
+      </mesh>
+
+      <mesh ref={haloRef}>
+        <sphereGeometry args={[2.45, 64, 64]} />
+        <meshBasicMaterial color="#ff2a2a" transparent opacity={0.08} />
+      </mesh>
+    </group>
   )
 }
 
 /* ---------------- STARFIELD ---------------- */
 
-function StarField({ count, spread, depth = 0 }: any) {
-  const ref = useRef<any>(null)
+function StarField({
+  count,
+  spread,
+  depth = 0,
+  size = 0.22,
+}: {
+  count: number
+  spread: number
+  depth?: number
+  size?: number
+}) {
+  const ref = useRef<THREE.Points>(null)
+  const materialRef = useRef<THREE.PointsMaterial>(null)
   const { camera } = useThree()
 
-  const positions = new Float32Array(count * 3)
+  const lastCameraPos = useRef(new THREE.Vector3())
+  const motionStrength = useRef(0)
 
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3
-    positions[i3] = (Math.random() - 0.5) * spread
-    positions[i3 + 1] = (Math.random() - 0.5) * spread
-    positions[i3 + 2] = (Math.random() - 0.5) * spread
-  }
+  const positions = useMemo(() => {
+    const arr = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      arr[i3] = (Math.random() - 0.5) * spread
+      arr[i3 + 1] = (Math.random() - 0.5) * spread
+      arr[i3 + 2] = (Math.random() - 0.5) * spread
+    }
+    return arr
+  }, [count, spread])
+
+  useEffect(() => {
+    lastCameraPos.current.copy(camera.position)
+  }, [camera])
 
   useFrame(() => {
-    if (!ref.current) return
+    if (!ref.current || !materialRef.current) return
+
     ref.current.position.x = camera.position.x * depth
     ref.current.position.y = camera.position.y * depth
+
+    const distanceMoved = camera.position.distanceTo(lastCameraPos.current)
+    const movementBoost = Math.min(distanceMoved * 18, 1)
+    motionStrength.current += (movementBoost - motionStrength.current) * 0.08
+
+    const targetOpacity =
+      0.16 + size * 0.35 + motionStrength.current * (0.55 + size * 0.35)
+    const targetSize = size + motionStrength.current * 0.08
+
+    materialRef.current.opacity +=
+      (targetOpacity - materialRef.current.opacity) * 0.08
+
+    materialRef.current.size +=
+      (targetSize - materialRef.current.size) * 0.08
+
+    lastCameraPos.current.copy(camera.position)
   })
 
   return (
@@ -62,10 +309,13 @@ function StarField({ count, spread, depth = 0 }: any) {
       </bufferGeometry>
 
       <pointsMaterial
-        size={0.2}
+        ref={materialRef}
+        size={size}
         sizeAttenuation
         depthWrite={false}
         color="white"
+        transparent
+        opacity={0.28}
       />
     </points>
   )
@@ -73,14 +323,21 @@ function StarField({ count, spread, depth = 0 }: any) {
 
 /* ---------------- ORBIT RING ---------------- */
 
-function OrbitRing({ radius }: any) {
+function OrbitRing({ radius, speed = 0.03 }: { radius: number; speed?: number }) {
+  const ref = useRef<THREE.Mesh>(null)
+
+  useFrame((state) => {
+    if (!ref.current) return
+    ref.current.rotation.z = state.clock.getElapsedTime() * speed
+  })
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[radius - 0.05, radius + 0.05, 128]} />
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[radius - 0.045, radius + 0.045, 128]} />
       <meshBasicMaterial
         color="white"
         transparent
-        opacity={0.15}
+        opacity={0.18}
         side={THREE.DoubleSide}
       />
     </mesh>
@@ -90,11 +347,12 @@ function OrbitRing({ radius }: any) {
 /* ---------------- NEBULA ---------------- */
 
 function Nebula() {
-  const ref = useRef<any>(null)
+  const ref = useRef<THREE.Mesh>(null)
 
   useFrame(() => {
     if (ref.current) {
-      ref.current.rotation.y += 0.0005
+      ref.current.rotation.y += 0.00035
+      ref.current.rotation.z += 0.00008
     }
   })
 
@@ -102,16 +360,366 @@ function Nebula() {
     <mesh ref={ref} scale={500}>
       <sphereGeometry args={[1, 64, 64]} />
       <meshBasicMaterial
-        color="#1a0033"
+        color="#140022"
         side={THREE.BackSide}
         transparent
-        opacity={0.6}
+        opacity={0.72}
       />
     </mesh>
   )
 }
 
+/* ---------------- DEEP SPACE BACKGROUND ---------------- */
+
+function DeepSpaceBackground() {
+  const { camera } = useThree()
+
+  const bandMainRef = useRef<THREE.Points>(null)
+  const bandDustRef = useRef<THREE.Points>(null)
+  const galaxyARef = useRef<THREE.Points>(null)
+  const galaxyBRef = useRef<THREE.Points>(null)
+  const streaksRef = useRef<THREE.Points>(null)
+
+  const bandMainMat = useRef<THREE.PointsMaterial>(null)
+  const bandDustMat = useRef<THREE.PointsMaterial>(null)
+  const galaxyAMat = useRef<THREE.PointsMaterial>(null)
+  const galaxyBMat = useRef<THREE.PointsMaterial>(null)
+  const streaksMat = useRef<THREE.PointsMaterial>(null)
+
+  const bandMain = useMemo(() => {
+    const count = 42000
+    const arr = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const x = (Math.random() - 0.5) * 2200
+      const curve = Math.sin(x * 0.0028) * 90
+      const thickness = (Math.random() - 0.5) * 130
+      const z = -520 + (Math.random() - 0.5) * 70
+
+      arr[i3] = x
+      arr[i3 + 1] = curve + thickness
+      arr[i3 + 2] = z
+    }
+
+    return arr
+  }, [])
+
+  const bandDust = useMemo(() => {
+    const count = 28000
+    const arr = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const x = (Math.random() - 0.5) * 2400
+      const curve = Math.sin(x * 0.0026) * 110
+      const thickness = (Math.random() - 0.5) * 220
+      const z = -620 + (Math.random() - 0.5) * 110
+
+      arr[i3] = x
+      arr[i3 + 1] = curve + thickness
+      arr[i3 + 2] = z
+    }
+
+    return arr
+  }, [])
+
+  const galaxyA = useMemo(() => {
+    const count = 16000
+    const arr = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const arm = Math.floor(Math.random() * 3)
+      const radius = Math.pow(Math.random(), 0.58) * 170
+      const angle =
+        Math.random() * Math.PI * 2 + radius * 0.05 + arm * 2.094
+
+      arr[i3] = Math.cos(angle) * radius + 520
+      arr[i3 + 1] = Math.sin(angle) * radius * 0.42 + 180
+      arr[i3 + 2] = -700 + (Math.random() - 0.5) * 50
+    }
+
+    return arr
+  }, [])
+
+  const galaxyB = useMemo(() => {
+    const count = 12000
+    const arr = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const arm = Math.floor(Math.random() * 2)
+      const radius = Math.pow(Math.random(), 0.62) * 130
+      const angle = Math.random() * Math.PI * 2 - radius * 0.06 + arm * Math.PI
+
+      arr[i3] = Math.cos(angle) * radius - 560
+      arr[i3 + 1] = Math.sin(angle) * radius * 0.38 - 190
+      arr[i3 + 2] = -760 + (Math.random() - 0.5) * 50
+    }
+
+    return arr
+  }, [])
+
+  const streaks = useMemo(() => {
+    const count = 18000
+    const arr = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const x = (Math.random() - 0.5) * 2600
+      const y = (Math.random() - 0.5) * 1200
+      const z = -850 + (Math.random() - 0.5) * 80
+
+      arr[i3] = x
+      arr[i3 + 1] = y
+      arr[i3 + 2] = z
+    }
+
+    return arr
+  }, [])
+
+  useFrame((state) => {
+    const zoom = camera.position.length()
+
+    let fade = 0
+    if (zoom > 150) {
+      fade = Math.pow(Math.min((zoom - 150) / 40, 1), 1.2)
+    }
+
+    const lerpSpeed = 0.08
+
+    if (bandMainMat.current) {
+      const targetOpacity = fade * 0.7
+      const targetSize = 1.2 + fade * 0.7
+
+      bandMainMat.current.opacity +=
+        (targetOpacity - bandMainMat.current.opacity) * lerpSpeed
+      bandMainMat.current.size +=
+        (targetSize - bandMainMat.current.size) * lerpSpeed
+    }
+
+    if (bandDustMat.current) {
+      const targetOpacity = fade * 0.4
+      const targetSize = 1.8 + fade * 0.7
+
+      bandDustMat.current.opacity +=
+        (targetOpacity - bandDustMat.current.opacity) * lerpSpeed
+      bandDustMat.current.size +=
+        (targetSize - bandDustMat.current.size) * lerpSpeed
+    }
+
+    if (galaxyAMat.current) {
+      const targetOpacity = fade * 0.9
+      const targetSize = 1.5 + fade * 0.8
+
+      galaxyAMat.current.opacity +=
+        (targetOpacity - galaxyAMat.current.opacity) * lerpSpeed
+      galaxyAMat.current.size +=
+        (targetSize - galaxyAMat.current.size) * lerpSpeed
+    }
+
+    if (galaxyBMat.current) {
+      const targetOpacity = fade * 0.75
+      const targetSize = 1.35 + fade * 0.7
+
+      galaxyBMat.current.opacity +=
+        (targetOpacity - galaxyBMat.current.opacity) * lerpSpeed
+      galaxyBMat.current.size +=
+        (targetSize - galaxyBMat.current.size) * lerpSpeed
+    }
+
+    if (streaksMat.current) {
+      const targetOpacity = fade * 0.28
+      const targetSize = 0.75 + fade * 0.28
+
+      streaksMat.current.opacity +=
+        (targetOpacity - streaksMat.current.opacity) * lerpSpeed
+      streaksMat.current.size +=
+        (targetSize - streaksMat.current.size) * lerpSpeed
+    }
+
+    if (bandMainRef.current) {
+      bandMainRef.current.rotation.z = -0.32
+      bandMainRef.current.rotation.y = state.clock.getElapsedTime() * 0.0009
+    }
+
+    if (bandDustRef.current) {
+      bandDustRef.current.rotation.z = -0.28
+      bandDustRef.current.rotation.y = -state.clock.getElapsedTime() * 0.0006
+    }
+
+    if (galaxyARef.current) {
+      galaxyARef.current.rotation.z = 0.25
+      galaxyARef.current.rotation.y = state.clock.getElapsedTime() * 0.0012
+    }
+
+    if (galaxyBRef.current) {
+      galaxyBRef.current.rotation.z = -0.22
+      galaxyBRef.current.rotation.y = -state.clock.getElapsedTime() * 0.001
+    }
+
+    if (streaksRef.current) {
+      streaksRef.current.rotation.z = 0.06
+    }
+  })
+
+  return (
+    <>
+      <points ref={streaksRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={streaks}
+            count={streaks.length / 3}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          ref={streaksMat}
+          color="#d7e5ff"
+          size={0.42}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          sizeAttenuation
+        />
+      </points>
+
+      <points ref={bandMainRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={bandMain}
+            count={bandMain.length / 3}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          ref={bandMainMat}
+          color="#efe7ff"
+          size={0.72}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          sizeAttenuation
+        />
+      </points>
+
+      <points ref={bandDustRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={bandDust}
+            count={bandDust.length / 3}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          ref={bandDustMat}
+          color="#bba9ff"
+          size={1.15}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          sizeAttenuation
+        />
+      </points>
+
+      <points ref={galaxyARef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={galaxyA}
+            count={galaxyA.length / 3}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          ref={galaxyAMat}
+          color="#ffe6b0"
+          size={0.9}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          sizeAttenuation
+        />
+      </points>
+
+      <points ref={galaxyBRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={galaxyB}
+            count={galaxyB.length / 3}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          ref={galaxyBMat}
+          color="#bed8ff"
+          size={0.82}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          sizeAttenuation
+        />
+      </points>
+    </>
+  )
+}
+
+/* ---------------- IDLE CAMERA MOTION ---------------- */
+
+function IdleCameraMotion({ active }: { active: boolean }) {
+  const { camera } = useThree()
+  const baseRadius = useRef<number | null>(null)
+
+  useFrame((state) => {
+    if (!active) {
+      baseRadius.current = null
+      return
+    }
+
+    const t = state.clock.getElapsedTime()
+
+    if (baseRadius.current === null) {
+      baseRadius.current = camera.position.length()
+    }
+
+    const radius = baseRadius.current
+    const angle = t * 0.08
+
+    const targetX = Math.sin(angle) * Math.min(radius * 0.08, 12)
+    const targetY = Math.cos(angle * 1.2) * Math.min(radius * 0.035, 6)
+    const targetZ = Math.sqrt(
+      Math.max(radius * radius - targetX * targetX - targetY * targetY, 25)
+    )
+
+    camera.position.x += (targetX - camera.position.x) * 0.01
+    camera.position.y += (targetY - camera.position.y) * 0.01
+    camera.position.z += (targetZ - camera.position.z) * 0.01
+  })
+
+  return null
+}
+
 /* ---------------- PLANET ---------------- */
+
+type PlanetProps = {
+  distance: number
+  size: number
+  speed: number
+  color: string
+  name: string
+  onSelect: (planetGroup: THREE.Group, name: string) => void
+  isSelected: boolean
+}
 
 function Planet({
   distance,
@@ -121,16 +729,20 @@ function Planet({
   name,
   onSelect,
   isSelected,
-}: any) {
-  const ref = useRef<any>(null)
-  const group = useRef<any>(null)
+}: PlanetProps) {
+  const ref = useRef<THREE.Mesh>(null)
+  const glowRef = useRef<THREE.Mesh>(null)
+  const group = useRef<THREE.Group>(null)
 
   const [hover, setHover] = useState(false)
   const angleRef = useRef(Math.random() * Math.PI * 2)
   const frozenPosition = useRef<THREE.Vector3 | null>(null)
+  const bobOffset = useRef(Math.random() * Math.PI * 2)
 
-  useFrame((_, delta) => {
-    if (!group.current || !ref.current) return
+  useFrame((state, delta) => {
+    if (!group.current || !ref.current || !glowRef.current) return
+
+    const t = state.clock.getElapsedTime()
 
     if (isSelected) {
       if (!frozenPosition.current) {
@@ -142,14 +754,21 @@ function Planet({
       angleRef.current += delta * speed
       group.current.position.x = Math.cos(angleRef.current) * distance
       group.current.position.z = Math.sin(angleRef.current) * distance
+      group.current.position.y = Math.sin(t * 1.2 + bobOffset.current) * 0.18
     }
 
     ref.current.rotation.y += 0.01
+    glowRef.current.rotation.y -= 0.004
 
-    const targetScale = hover || isSelected ? 1.25 : 1
+    const targetScale = hover || isSelected ? 1.22 : 1
     ref.current.scale.x += (targetScale - ref.current.scale.x) * 0.1
     ref.current.scale.y += (targetScale - ref.current.scale.y) * 0.1
     ref.current.scale.z += (targetScale - ref.current.scale.z) * 0.1
+
+    const glowScale = hover || isSelected ? 1.95 : 1.6
+    glowRef.current.scale.x += (glowScale - glowRef.current.scale.x) * 0.08
+    glowRef.current.scale.y += (glowScale - glowRef.current.scale.y) * 0.08
+    glowRef.current.scale.z += (glowScale - glowRef.current.scale.z) * 0.08
   })
 
   return (
@@ -158,7 +777,7 @@ function Planet({
         ref={ref}
         onClick={(e) => {
           e.stopPropagation()
-          onSelect?.(group.current)
+          if (group.current) onSelect(group.current, name)
         }}
         onPointerOver={(e) => {
           e.stopPropagation()
@@ -174,13 +793,15 @@ function Planet({
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={isSelected ? 1.4 : hover ? 1 : 0.4}
+          emissiveIntensity={isSelected ? 1.5 : hover ? 1.1 : 0.45}
+          roughness={0.35}
+          metalness={0.1}
         />
       </mesh>
 
-      <mesh scale={1.6}>
+      <mesh ref={glowRef} scale={1.6}>
         <sphereGeometry args={[size, 32, 32]} />
-        <meshBasicMaterial color={color} transparent opacity={0.15} />
+        <meshBasicMaterial color={color} transparent opacity={0.14} />
       </mesh>
     </group>
   )
@@ -188,89 +809,73 @@ function Planet({
 
 /* ---------------- PLANET SYSTEM ---------------- */
 
-function PlanetSystem({ openModule, selectedPlanet }: any) {
+function PlanetSystem({
+  openModule,
+  selectedPlanet,
+  bootPhase,
+}: {
+  openModule: (
+    planetGroup: THREE.Group,
+    module: {
+      name: string
+      role: string
+      description: string
+      detects: string[]
+      matters: string
+      signals: string[]
+      color: string
+    }
+  ) => void
+  selectedPlanet: SelectedPlanetState
+  bootPhase: number
+}) {
+  if (bootPhase < 3) return null
+
   return (
     <>
-      <OrbitRing radius={10} />
-      <OrbitRing radius={14} />
-      <OrbitRing radius={18} />
-      <OrbitRing radius={22} />
+      <OrbitRing radius={15} speed={0.03} />
+      <OrbitRing radius={18} speed={-0.02} />
+      <OrbitRing radius={21} speed={0.018} />
+      <OrbitRing radius={25} speed={-0.014} />
 
-      <Planet
-        name="Behavioral Mapping"
-        distance={10}
-        size={0.7}
-        speed={1}
-        color="#00e5ff"
-        isSelected={selectedPlanet?.name === "Behavioral Mapping"}
-        onSelect={(planetGroup: any) =>
-          openModule(planetGroup, "Behavioral Mapping")
-        }
-      />
-
-      <Planet
-        name="Intent Recognition"
-        distance={14}
-        size={0.9}
-        speed={0.7}
-        color="#ffae00"
-        isSelected={selectedPlanet?.name === "Intent Recognition"}
-        onSelect={(planetGroup: any) =>
-          openModule(planetGroup, "Intent Recognition")
-        }
-      />
-
-      <Planet
-        name="Predictive Layer"
-        distance={18}
-        size={1.1}
-        speed={0.5}
-        color="#7cff00"
-        isSelected={selectedPlanet?.name === "Predictive Layer"}
-        onSelect={(planetGroup: any) =>
-          openModule(planetGroup, "Predictive Layer")
-        }
-      />
-
-      <Planet
-        name="Cognitive Engine"
-        distance={22}
-        size={1.3}
-        speed={0.3}
-        color="#ff4d6d"
-        isSelected={selectedPlanet?.name === "Cognitive Engine"}
-        onSelect={(planetGroup: any) =>
-          openModule(planetGroup, "Cognitive Engine")
-        }
-      />
+      {MODULES.map((module) => (
+        <Planet
+          key={module.name}
+          name={module.name}
+          distance={module.distance}
+          size={module.size}
+          speed={module.speed}
+          color={module.color}
+          isSelected={selectedPlanet?.name === module.name}
+          onSelect={(planetGroup) =>
+            openModule(planetGroup, {
+              name: module.name,
+              role: module.role,
+              description: module.description,
+              detects: module.detects,
+              matters: module.matters,
+              signals: module.signals,
+              color: module.color,
+            })
+          }
+        />
+      ))}
     </>
   )
 }
 
-/* ---------------- CAMERA WATCHER ---------------- */
-
-function CameraWatcher({ setZoom }: any) {
-  const { camera } = useThree()
-
-  useFrame(() => {
-    setZoom(camera.position.z)
-  })
-
-  return null
-}
-
 /* ---------------- CAMERA FOLLOW ---------------- */
 
-function CameraFollow({ selectedPlanet }: any) {
+function CameraFollow({ selectedPlanet }: { selectedPlanet: SelectedPlanetState }) {
   const { camera } = useThree()
 
   useFrame(() => {
-    if (!selectedPlanet?.group?.current) return
+    if (!selectedPlanet?.group) return
 
-    const p = selectedPlanet.group.current.position
-    const desired = new THREE.Vector3(p.x + 3, p.y + 2, p.z + 5)
+    const p = selectedPlanet.group.position
+    const desired = new THREE.Vector3(p.x + 3.2, p.y + 2.1, p.z + 5.4)
 
-    camera.position.lerp(desired, 0.06)
+    camera.position.lerp(desired, 0.055)
     camera.lookAt(p)
   })
 
@@ -280,13 +885,65 @@ function CameraFollow({ selectedPlanet }: any) {
 /* ---------------- MAIN PAGE ---------------- */
 
 export default function Home() {
-  const [zoom, setZoom] = useState(8)
-  const [selectedPlanet, setSelectedPlanet] = useState<any>(null)
+  const [selectedPlanet, setSelectedPlanet] = useState<SelectedPlanetState>(null)
+  const [userInteracting, setUserInteracting] = useState(false)
+  const [hasUserTakenControl, setHasUserTakenControl] = useState(false)
+  const [bootPhase, setBootPhase] = useState(0)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [showPreloader, setShowPreloader] = useState(true)
 
-  const openModule = (planetGroup: any, name: string) => {
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "default"
+    }
+  }, [])
+
+  useEffect(() => {
+    let progress = 0
+
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 12) + 6
+      if (progress >= 100) {
+        progress = 100
+        setLoadingProgress(100)
+        clearInterval(interval)
+
+        setTimeout(() => {
+          setShowPreloader(false)
+          setBootPhase(1)
+        }, 350)
+
+        setTimeout(() => setBootPhase(2), 1000)
+        setTimeout(() => setBootPhase(3), 1800)
+      } else {
+        setLoadingProgress(progress)
+      }
+    }, 110)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const openModule = (
+    planetGroup: THREE.Group,
+    module: {
+      name: string
+      role: string
+      description: string
+      detects: string[]
+      matters: string
+      signals: string[]
+      color: string
+    }
+  ) => {
     setSelectedPlanet({
       group: planetGroup,
-      name,
+      name: module.name,
+      role: module.role,
+      description: module.description,
+      detects: module.detects,
+      matters: module.matters,
+      signals: module.signals,
+      color: module.color,
     })
   }
 
@@ -298,124 +955,801 @@ export default function Home() {
   return (
     <div
       style={{
-        height: "100vh",
-        background: "#02010a",
+        minHeight: "100vh",
+        color: "white",
+        background:
+          "radial-gradient(circle at 50% 8%, rgba(20,30,80,0.22) 0%, rgba(5,8,22,0.16) 22%, rgba(2,1,10,1) 58%, rgba(0,0,0,1) 100%)",
         position: "relative",
       }}
     >
-      {/* PROMETHEUS TITLE */}
-
       <div
         style={{
           position: "absolute",
-          top: "40%",
-          width: "100%",
-          textAlign: "center",
-          color: "white",
-          zIndex: 10,
+          inset: 0,
           pointerEvents: "none",
+          overflow: "hidden",
+          zIndex: 0,
         }}
       >
         <div
           style={{
-            fontSize: "4rem",
-            fontWeight: "bold",
-            letterSpacing: "6px",
+            position: "absolute",
+            top: "22%",
+            left: "-8%",
+            width: "42vw",
+            height: "42vw",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(90,110,255,0.12) 0%, rgba(90,110,255,0.04) 35%, rgba(0,0,0,0) 72%)",
+            filter: "blur(40px)",
           }}
-        >
-          Prometheus
-        </div>
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "52%",
+            right: "-12%",
+            width: "46vw",
+            height: "46vw",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(170,90,255,0.10) 0%, rgba(170,90,255,0.035) 34%, rgba(0,0,0,0) 72%)",
+            filter: "blur(46px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: "8%",
+            left: "18%",
+            width: "34vw",
+            height: "34vw",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(70,150,255,0.08) 0%, rgba(70,150,255,0.025) 38%, rgba(0,0,0,0) 74%)",
+            filter: "blur(44px)",
+          }}
+        />
 
         <div
           style={{
-            fontSize: "1.5rem",
-            marginTop: "10px",
-            color: "#1eff00",
-            letterSpacing: "2px",
+            position: "absolute",
+            inset: 0,
+            opacity: 0.22,
+            backgroundImage: `
+              radial-gradient(circle at 12% 18%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 24% 62%, rgba(255,255,255,0.75) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 38% 28%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 52% 74%, rgba(255,255,255,0.7) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 68% 36%, rgba(255,255,255,0.85) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 78% 58%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 88% 18%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 16% 86%, rgba(255,255,255,0.75) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 58% 10%, rgba(255,255,255,0.7) 0 1px, transparent 1.5px),
+              radial-gradient(circle at 92% 82%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px)
+            `,
+            backgroundRepeat: "repeat",
+            backgroundSize: "520px 520px",
           }}
-        >
-          Behavioral-Intent Intelligence Framework
-        </div>
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            top: "18%",
+            left: "-10%",
+            width: "130%",
+            height: "38%",
+            transform: "rotate(-12deg)",
+            background:
+              "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(210,220,255,0.03) 20%, rgba(230,210,255,0.06) 48%, rgba(210,220,255,0.03) 76%, rgba(255,255,255,0) 100%)",
+            filter: "blur(30px)",
+            opacity: 0.7,
+          }}
+        />
       </div>
 
-      {/* RETURN BUTTON */}
+      <div
+        style={{
+          height: "100vh",
+          position: "relative",
+          overflow: "hidden",
+          zIndex: 1,
+          background:
+            "radial-gradient(circle at center, #050816 0%, #02010a 45%, #000000 100%)",
+        }}
+      >
+        <Preloader visible={showPreloader} progress={loadingProgress} />
 
-      {selectedPlanet && (
-        <button
-          onClick={returnToSystem}
+        <div
           style={{
             position: "absolute",
             top: "30px",
-            right: "30px",
-            zIndex: 20,
-            background: "rgba(0,0,0,0.75)",
+            left: "34px",
             color: "white",
-            border: "1px solid rgba(255,255,255,0.3)",
-            borderRadius: "8px",
-            padding: "10px 16px",
-            cursor: "pointer",
+            zIndex: 20,
+            letterSpacing: "3px",
+            fontSize: "0.95rem",
+            opacity: bootPhase < 2 ? 0 : selectedPlanet ? 0.35 : 0.8,
+            transform: bootPhase < 2 ? "translateY(-10px)" : "translateY(0)",
+            transition: "all 0.7s ease",
           }}
         >
-          Return to System
-        </button>
-      )}
+          PROMETHEUS // PRE-BREACH INTELLIGENCE
+        </div>
 
-      {/* MODULE LABEL */}
-
-      {selectedPlanet && (
         <div
           style={{
             position: "absolute",
-            bottom: "60px",
+            top: selectedPlanet ? "10%" : bootPhase < 2 ? "42%" : "38%",
             left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(0,0,0,0.7)",
-            padding: "16px 24px",
-            borderRadius: "10px",
+            transform: selectedPlanet
+              ? "translateX(-50%) scale(0.96)"
+              : bootPhase === 0
+              ? "translateX(-50%) scale(0.94)"
+              : "translateX(-50%) scale(1)",
+            width: "min(1200px, 92vw)",
+            textAlign: "center",
             color: "white",
-            zIndex: 20,
-            border: "1px solid rgba(255,255,255,0.15)",
+            zIndex: 10,
+            pointerEvents: "none",
+            transition: "all 0.7s ease",
+            opacity: bootPhase === 0 ? 0 : selectedPlanet ? 0.18 : 1,
           }}
         >
-          {selectedPlanet.name}
-        </div>
-      )}
+          <div
+            style={{
+              fontSize: "clamp(3.5rem, 8vw, 7rem)",
+              fontWeight: 700,
+              letterSpacing: "8px",
+              textTransform: "uppercase",
+              textShadow: "0 0 28px rgba(255,0,0,0.18)",
+              opacity: bootPhase >= 1 ? 1 : 0,
+              transform: bootPhase >= 1 ? "translateY(0)" : "translateY(18px)",
+              transition: "all 0.9s ease",
+              lineHeight: 1,
+            }}
+          >
+            Prometheus
+          </div>
 
-      <Canvas
-        camera={{
-          position: [0, 0, 8],
-          fov: 60,
-        }}
-        onPointerMissed={() => {
-          if (selectedPlanet) returnToSystem()
+          <div
+            style={{
+              fontSize: "clamp(1rem, 2vw, 1.4rem)",
+              marginTop: "18px",
+              color: "#89ff73",
+              letterSpacing: "2.5px",
+              textTransform: "uppercase",
+              opacity: bootPhase >= 2 ? 1 : 0,
+              transform: bootPhase >= 2 ? "translateY(0)" : "translateY(14px)",
+              transition: "all 0.9s ease",
+              lineHeight: 1.4,
+            }}
+          >
+            Detecting breach conditions before technical compromise
+          </div>
+        </div>
+
+        {!selectedPlanet && bootPhase >= 3 && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "34px",
+              left: "34px",
+              zIndex: 20,
+              color: "rgba(255,255,255,0.72)",
+              maxWidth: "420px",
+              fontSize: "0.95rem",
+              lineHeight: 1.6,
+              transition: "opacity 0.4s ease",
+            }}
+          >
+            Prometheus models consent drift inside trusted systems by tracking
+            behavioral deviation, intent misalignment, and pre-incident pressure
+            signals.
+          </div>
+        )}
+
+        {selectedPlanet && (
+          <button
+            onClick={returnToSystem}
+            style={{
+              position: "absolute",
+              top: "30px",
+              right: "30px",
+              zIndex: 30,
+              background: "rgba(0,0,0,0.72)",
+              color: "white",
+              border: "1px solid rgba(255,255,255,0.25)",
+              borderRadius: "10px",
+              padding: "12px 18px",
+              cursor: "pointer",
+              backdropFilter: "blur(10px)",
+              letterSpacing: "0.5px",
+              transition: "all 0.25s ease",
+            }}
+          >
+            Return to System
+          </button>
+        )}
+
+        {selectedPlanet && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "34px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "min(980px, 92vw)",
+              background: "rgba(0,0,0,0.62)",
+              padding: "24px 26px",
+              borderRadius: "16px",
+              color: "white",
+              zIndex: 25,
+              border: "1px solid rgba(255,255,255,0.16)",
+              backdropFilter: "blur(14px)",
+              boxShadow: "0 0 40px rgba(0,0,0,0.35)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "10px",
+              }}
+            >
+              <div
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "999px",
+                  background: selectedPlanet.color,
+                  boxShadow: `0 0 16px ${selectedPlanet.color}`,
+                  flexShrink: 0,
+                }}
+              />
+
+              <div
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: 700,
+                  letterSpacing: "1px",
+                }}
+              >
+                {selectedPlanet.name}
+              </div>
+            </div>
+
+            <div
+              style={{
+                fontSize: "0.92rem",
+                letterSpacing: "1.2px",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.56)",
+                marginBottom: "16px",
+              }}
+            >
+              {selectedPlanet.role}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.2fr 1fr 1fr",
+                gap: "22px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: "0.9rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "1.2px",
+                    color: "rgba(255,255,255,0.5)",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Overview
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "0.98rem",
+                    lineHeight: 1.7,
+                    color: "rgba(255,255,255,0.84)",
+                    marginBottom: "14px",
+                  }}
+                >
+                  {selectedPlanet.description}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "0.95rem",
+                    lineHeight: 1.7,
+                    color: "rgba(255,255,255,0.72)",
+                  }}
+                >
+                  {selectedPlanet.matters}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    fontSize: "0.9rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "1.2px",
+                    color: "rgba(255,255,255,0.5)",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Detects
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {selectedPlanet.detects.map((item) => (
+                    <div
+                      key={item}
+                      style={{
+                        fontSize: "0.94rem",
+                        lineHeight: 1.5,
+                        color: "rgba(255,255,255,0.82)",
+                        paddingLeft: "14px",
+                        position: "relative",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: "0.45em",
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "999px",
+                          background: selectedPlanet.color,
+                          boxShadow: `0 0 10px ${selectedPlanet.color}`,
+                        }}
+                      />
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    fontSize: "0.9rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "1.2px",
+                    color: "rgba(255,255,255,0.5)",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Signal Classes
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                  }}
+                >
+                  {selectedPlanet.signals.map((item) => (
+                    <div
+                      key={item}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "999px",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: "rgba(255,255,255,0.04)",
+                        fontSize: "0.88rem",
+                        color: "rgba(255,255,255,0.8)",
+                      }}
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Canvas
+          camera={{
+            position: [0, 0, 32],
+            fov: 60,
+          }}
+          onPointerMissed={() => {
+            if (selectedPlanet) returnToSystem()
+          }}
+        >
+          <ambientLight intensity={0.5} />
+          <pointLight position={[10, 10, 10]} intensity={1.2} color="#ffffff" />
+          <pointLight position={[-12, -8, -10]} intensity={0.5} color="#4d79ff" />
+          <pointLight position={[0, 0, 0]} intensity={1.6} color="#ff2a2a" />
+
+          <IdleCameraMotion
+            active={!selectedPlanet && !userInteracting && !hasUserTakenControl}
+          />
+          <CameraFollow selectedPlanet={selectedPlanet} />
+
+          <Nebula />
+          <DeepSpaceBackground />
+
+          <StarField count={12000} spread={150} depth={0.01} size={0.2} />
+          <StarField count={8000} spread={300} depth={0.005} size={0.24} />
+          <StarField count={5000} spread={500} depth={0.001} size={0.28} />
+
+          <PlanetSystem
+            openModule={openModule}
+            selectedPlanet={selectedPlanet}
+            bootPhase={bootPhase}
+          />
+
+          <Core bootPhase={bootPhase} />
+
+          <OrbitControls
+            onStart={() => {
+              setUserInteracting(true)
+              setHasUserTakenControl(true)
+            }}
+            onEnd={() => setUserInteracting(false)}
+            enableZoom={!selectedPlanet}
+            enablePan={true}
+            minDistance={5}
+            maxDistance={400}
+            enableDamping
+            dampingFactor={0.05}
+            autoRotate={
+              !selectedPlanet && !userInteracting && !hasUserTakenControl
+            }
+            autoRotateSpeed={0.3}
+          />
+        </Canvas>
+      </div>
+
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "120px 8vw 80px",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%)",
         }}
       >
-        <ambientLight intensity={0.6} />
-        <pointLight position={[10, 10, 10]} />
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.9rem",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.46)",
+              marginBottom: "14px",
+            }}
+          >
+            What Prometheus Is
+          </div>
 
-        <CameraWatcher setZoom={setZoom} />
-        <CameraFollow selectedPlanet={selectedPlanet} />
+          <div
+            style={{
+              fontSize: "clamp(2rem, 4vw, 3.4rem)",
+              fontWeight: 700,
+              lineHeight: 1.15,
+              maxWidth: "980px",
+              marginBottom: "22px",
+            }}
+          >
+            Prometheus models when legitimate users begin becoming the breach
+            path.
+          </div>
 
-        <Nebula />
+          <div
+            style={{
+              maxWidth: "980px",
+              fontSize: "1.05rem",
+              lineHeight: 1.9,
+              color: "rgba(255,255,255,0.76)",
+            }}
+          >
+            Prometheus is a behavioral-intent intelligence framework that
+            detects when the alignment between human intent and system action
+            begins to degrade inside trusted environments. Instead of asking
+            whether an action is merely allowed, it asks whether that action
+            still makes sense under current conditions of stress, ambiguity,
+            urgency, and cognitive drift.
+          </div>
+        </div>
+      </section>
 
-        <StarField count={12000} spread={150} depth={0.02} />
-        <StarField count={8000} spread={300} depth={0.01} />
-        <StarField count={5000} spread={500} depth={0.005} />
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "20px 8vw 90px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "18px",
+          }}
+        >
+          {[
+            {
+              title: "Why Current Security Fails",
+              text: "Most systems assume users are rational, intent is stable, trust is binary, and behavior equals consent. In reality, users operate under pressure, fatigue, ambiguity, and degraded judgment long before a technical incident is visible.",
+            },
+            {
+              title: "Authorization Is Not Consent",
+              text: "Traditional controls recognize roles, permissions, and policy states. Prometheus models whether exercised permissions remain aligned with inferred human intent in context.",
+            },
+            {
+              title: "Pre-Breach Intelligence",
+              text: "Prometheus focuses on the conditions that form before compromise: behavioral drift, intent misalignment, decision degradation, and unknown consent emerging inside trusted workflows.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.02) 100%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "20px",
+                padding: "26px",
+                backdropFilter: "blur(14px)",
+                boxShadow: "0 14px 40px rgba(0,0,0,0.22)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: 700,
+                  marginBottom: "12px",
+                }}
+              >
+                {item.title}
+              </div>
 
-        <PlanetSystem
-          openModule={openModule}
-          selectedPlanet={selectedPlanet}
-        />
+              <div
+                style={{
+                  fontSize: "0.98rem",
+                  lineHeight: 1.75,
+                  color: "rgba(255,255,255,0.74)",
+                }}
+              >
+                {item.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <Core />
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "20px 8vw 110px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.9rem",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.46)",
+              marginBottom: "14px",
+            }}
+          >
+            The Four Layers
+          </div>
 
-        <OrbitControls
-          enableZoom={!selectedPlanet}
-          enablePan={false}
-          minDistance={1}
-          maxDistance={300}
-        />
-      </Canvas>
+          <div
+            style={{
+              fontSize: "clamp(1.8rem, 3vw, 2.8rem)",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              marginBottom: "28px",
+              maxWidth: "880px",
+            }}
+          >
+            A layered model for consent alignment, human drift, and pre-incident
+            risk.
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "16px",
+            }}
+          >
+            {MODULES.map((module) => (
+              <div
+                key={module.name}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "220px 1fr",
+                  gap: "22px",
+                  alignItems: "start",
+                  padding: "22px 0",
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "999px",
+                        background: module.color,
+                        boxShadow: `0 0 14px ${module.color}`,
+                        flexShrink: 0,
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        fontSize: "1.05rem",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {module.name}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: "0.88rem",
+                      color: "rgba(255,255,255,0.5)",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {module.role}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "0.98rem",
+                    lineHeight: 1.8,
+                    color: "rgba(255,255,255,0.76)",
+                  }}
+                >
+                  {module.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "10px 8vw 130px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "1.1fr 0.9fr",
+            gap: "32px",
+            alignItems: "start",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: "0.9rem",
+                letterSpacing: "3px",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.46)",
+                marginBottom: "14px",
+              }}
+            >
+              Why It Matters
+            </div>
+
+            <div
+              style={{
+                fontSize: "clamp(1.8rem, 3vw, 2.8rem)",
+                fontWeight: 700,
+                lineHeight: 1.2,
+                marginBottom: "18px",
+              }}
+            >
+              Every major breach eventually reveals the same uncomfortable fact.
+            </div>
+
+            <div
+              style={{
+                fontSize: "1.02rem",
+                lineHeight: 1.85,
+                color: "rgba(255,255,255,0.76)",
+                maxWidth: "760px",
+              }}
+            >
+              A legitimate user did something they should not have. Prometheus
+              exists to answer the harder question: why did it make sense to
+              them at the time? By modeling the gap between authorization and
+              true consent alignment, it identifies human-system drift before
+              technical compromise becomes visible.
+            </div>
+          </div>
+
+          <div
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "22px",
+              padding: "26px",
+              backdropFilter: "blur(14px)",
+              boxShadow: "0 14px 40px rgba(0,0,0,0.22)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.9rem",
+                textTransform: "uppercase",
+                letterSpacing: "2px",
+                color: "rgba(255,255,255,0.5)",
+                marginBottom: "14px",
+              }}
+            >
+              Prometheus Thesis
+            </div>
+
+            <div
+              style={{
+                fontSize: "1.05rem",
+                lineHeight: 1.8,
+                color: "rgba(255,255,255,0.82)",
+              }}
+            >
+              Prometheus detects when trusted interaction begins becoming
+              breach-enabling by modeling consent as a dynamic alignment between
+              human intent, cognition, context, and system action.
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
