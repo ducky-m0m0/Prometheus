@@ -300,12 +300,7 @@ function StarField({
   return (
     <points ref={ref}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          array={positions}
-          count={positions.length / 3}
-          itemSize={3}
-        />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
 
       <pointsMaterial
@@ -568,12 +563,7 @@ function DeepSpaceBackground() {
     <>
       <points ref={streaksRef}>
         <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={streaks}
-            count={streaks.length / 3}
-            itemSize={3}
-          />
+          <bufferAttribute attach="attributes-position" args={[streaks, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={streaksMat}
@@ -589,12 +579,7 @@ function DeepSpaceBackground() {
 
       <points ref={bandMainRef}>
         <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={bandMain}
-            count={bandMain.length / 3}
-            itemSize={3}
-          />
+          <bufferAttribute attach="attributes-position" args={[bandMain, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={bandMainMat}
@@ -610,12 +595,7 @@ function DeepSpaceBackground() {
 
       <points ref={bandDustRef}>
         <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={bandDust}
-            count={bandDust.length / 3}
-            itemSize={3}
-          />
+          <bufferAttribute attach="attributes-position" args={[bandDust, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={bandDustMat}
@@ -631,12 +611,7 @@ function DeepSpaceBackground() {
 
       <points ref={galaxyARef}>
         <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={galaxyA}
-            count={galaxyA.length / 3}
-            itemSize={3}
-          />
+          <bufferAttribute attach="attributes-position" args={[galaxyA, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={galaxyAMat}
@@ -652,12 +627,7 @@ function DeepSpaceBackground() {
 
       <points ref={galaxyBRef}>
         <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={galaxyB}
-            count={galaxyB.length / 3}
-            itemSize={3}
-          />
+          <bufferAttribute attach="attributes-position" args={[galaxyB, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={galaxyBMat}
