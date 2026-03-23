@@ -853,7 +853,7 @@ function CameraFollow({ selectedPlanet }: { selectedPlanet: SelectedPlanetState 
 }
 
 /* ---------------- MAIN PAGE ---------------- */
-
+const isLowEnd = typeof window !== "undefined" && window.innerWidth < 768
 export default function Home() {
   const [selectedPlanet, setSelectedPlanet] = useState<SelectedPlanetState>(null)
   const [userInteracting, setUserInteracting] = useState(false)
@@ -1336,6 +1336,8 @@ export default function Home() {
         )}
 
         <Canvas
+  dpr={[1, 1.5]}
+  gl={{ antialias: false }}
           camera={{
             position: [0, 0, 32],
             fov: 60,
@@ -1355,11 +1357,11 @@ export default function Home() {
           <CameraFollow selectedPlanet={selectedPlanet} />
 
           <Nebula />
-          <DeepSpaceBackground />
+          {!isLowEnd && <DeepSpaceBackground />}
 
-          <StarField count={12000} spread={150} depth={0.01} size={0.2} />
-          <StarField count={8000} spread={300} depth={0.005} size={0.24} />
-          <StarField count={5000} spread={500} depth={0.001} size={0.28} />
+          <StarField count={isLowEnd ? 4000 : 12000} spread={150} depth={0.01} size={0.2} />
+          <StarField count={isLowEnd ? 2500 : 8000} spread={300} depth={0.005} size={0.24} />
+          <StarField count={isLowEnd ? 1500 : 5000} spread={500} depth={0.001} size={0.28} />
 
           <PlanetSystem
             openModule={openModule}
@@ -1382,18 +1384,98 @@ export default function Home() {
             enableDamping
             dampingFactor={0.05}
             autoRotate={
-              !selectedPlanet && !userInteracting && !hasUserTakenControl
-            }
+  !isLowEnd && !selectedPlanet && !userInteracting && !hasUserTakenControl
+}
             autoRotateSpeed={0.3}
           />
         </Canvas>
       </div>
-
       <section
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "120px 8vw 80px",
+          padding: "42px 8vw 36px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "16px",
+          }}
+        >
+          {[
+            {
+              kicker: "What It Is",
+              title: "A pre-breach intelligence framework",
+              text: "Prometheus models when trusted human-system interaction begins drifting toward breach-enabling behavior.",
+            },
+            {
+              kicker: "What It Detects",
+              title: "Consent drift before compromise",
+              text: "It identifies behavioral deviation, intent misalignment, and decision degradation before technical compromise becomes visible.",
+            },
+            {
+              kicker: "Why It Matters",
+              title: "Authorization is not alignment",
+              text: "Just because a user can do something does not mean that action still aligns with their actual intent under pressure.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "18px",
+                padding: "22px",
+                backdropFilter: "blur(14px)",
+                boxShadow: "0 14px 36px rgba(0,0,0,0.2)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.82rem",
+                  letterSpacing: "2px",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.48)",
+                  marginBottom: "10px",
+                }}
+              >
+                {item.kicker}
+              </div>
+
+              <div
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  marginBottom: "10px",
+                }}
+              >
+                {item.title}
+              </div>
+
+              <div
+                style={{
+                  fontSize: "0.96rem",
+                  lineHeight: 1.7,
+                  color: "rgba(255,255,255,0.74)",
+                }}
+              >
+                {item.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "72px 8vw 80px",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%)",
