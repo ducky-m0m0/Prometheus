@@ -194,6 +194,7 @@ function Preloader({
 function SimulationTerminal({ isMobile }: { isMobile: boolean }) {
   const [logs, setLogs] = useState<string[]>([])
   const [runKey, setRunKey] = useState(0)
+  const timersRef = useRef<number[]>([])
 
   const events = useMemo(
     () => [
@@ -207,17 +208,23 @@ function SimulationTerminal({ isMobile }: { isMobile: boolean }) {
   )
 
   useEffect(() => {
+    // clear any old timers before starting a new run
+    timersRef.current.forEach((timer) => window.clearTimeout(timer))
+    timersRef.current = []
     setLogs([])
-    let i = 0
-    const interval = setInterval(() => {
-      setLogs((prev) => [...prev, events[i]])
-      i++
-      if (i >= events.length) {
-        clearInterval(interval)
-      }
-    }, 1000)
 
-    return () => clearInterval(interval)
+    events.forEach((event, index) => {
+      const timer = window.setTimeout(() => {
+        setLogs((prev) => [...prev, event])
+      }, 900 * (index + 1))
+
+      timersRef.current.push(timer)
+    })
+
+    return () => {
+      timersRef.current.forEach((timer) => window.clearTimeout(timer))
+      timersRef.current = []
+    }
   }, [events, runKey])
 
   return (
@@ -304,7 +311,8 @@ function SimulationTerminal({ isMobile }: { isMobile: boolean }) {
       <div
         style={{
           padding: isMobile ? "16px 14px" : "20px 20px",
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
           fontSize: isMobile ? "0.8rem" : "0.92rem",
           lineHeight: 1.8,
           minHeight: isMobile ? "220px" : "260px",
@@ -319,15 +327,14 @@ function SimulationTerminal({ isMobile }: { isMobile: boolean }) {
 
         {logs.map((log, i) => (
           <div
-            key={`${log}-${i}`}
+            key={`${i}-${log}`}
             style={{
               marginBottom: "8px",
-              color:
-                log.includes("HIGH RISK")
-                  ? "#ff8080"
-                  : log.includes("dropping")
-                  ? "#ffd580"
-                  : "#d6f7de",
+              color: log.includes("HIGH RISK")
+                ? "#ff8080"
+                : log.includes("dropping")
+                ? "#ffd580"
+                : "#d6f7de",
             }}
           >
             {">"} {log}
