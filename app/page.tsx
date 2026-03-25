@@ -189,6 +189,155 @@ function Preloader({
   )
 }
 
+/* ---------------- LIVE SIMULATION ---------------- */
+
+function SimulationTerminal({ isMobile }: { isMobile: boolean }) {
+  const [logs, setLogs] = useState<string[]>([])
+  const [runKey, setRunKey] = useState(0)
+
+  const events = useMemo(
+    () => [
+      "08:42 — User login matched baseline profile",
+      "09:10 — Behavioral drift detected in workflow timing",
+      "09:14 — Intent mismatch increasing across privilege path",
+      "09:18 — Consent alignment score dropping below safe range",
+      "09:22 — HIGH RISK: pre-breach condition detected",
+    ],
+    []
+  )
+
+  useEffect(() => {
+    setLogs([])
+    let i = 0
+    const interval = setInterval(() => {
+      setLogs((prev) => [...prev, events[i]])
+      i++
+      if (i >= events.length) {
+        clearInterval(interval)
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [events, runKey])
+
+  return (
+    <div
+      style={{
+        background:
+          "linear-gradient(180deg, rgba(0,0,0,0.78) 0%, rgba(8,10,18,0.82) 100%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "20px",
+        overflow: "hidden",
+        boxShadow: "0 14px 40px rgba(0,0,0,0.22)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: isMobile ? "12px 14px" : "14px 18px",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(255,255,255,0.03)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "999px",
+              background: "#ff4d4d",
+            }}
+          />
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "999px",
+              background: "#ffbf47",
+            }}
+          />
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "999px",
+              background: "#4dff88",
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            fontSize: isMobile ? "0.72rem" : "0.78rem",
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.52)",
+          }}
+        >
+          Live Simulation
+        </div>
+
+        <button
+          onClick={() => setRunKey((k) => k + 1)}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            color: "white",
+            borderRadius: "10px",
+            padding: isMobile ? "8px 10px" : "8px 12px",
+            fontSize: isMobile ? "0.72rem" : "0.78rem",
+            cursor: "pointer",
+          }}
+        >
+          Replay
+        </button>
+      </div>
+
+      <div
+        style={{
+          padding: isMobile ? "16px 14px" : "20px 20px",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: isMobile ? "0.8rem" : "0.92rem",
+          lineHeight: 1.8,
+          minHeight: isMobile ? "220px" : "260px",
+          color: "#d7f5dd",
+        }}
+      >
+        {logs.length === 0 && (
+          <div style={{ color: "rgba(255,255,255,0.38)" }}>
+            Booting simulation...
+          </div>
+        )}
+
+        {logs.map((log, i) => (
+          <div
+            key={`${log}-${i}`}
+            style={{
+              marginBottom: "8px",
+              color:
+                log.includes("HIGH RISK")
+                  ? "#ff8080"
+                  : log.includes("dropping")
+                  ? "#ffd580"
+                  : "#d6f7de",
+            }}
+          >
+            {">"} {log}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ---------------- CORE ---------------- */
 
 function Core({ bootPhase }: { bootPhase: number }) {
@@ -853,7 +1002,7 @@ function CameraFollow({ selectedPlanet }: { selectedPlanet: SelectedPlanetState 
 }
 
 /* ---------------- MAIN PAGE ---------------- */
-const isLowEnd = typeof window !== "undefined" && window.innerWidth < 768
+
 export default function Home() {
   const [selectedPlanet, setSelectedPlanet] = useState<SelectedPlanetState>(null)
   const [userInteracting, setUserInteracting] = useState(false)
@@ -861,11 +1010,23 @@ export default function Home() {
   const [bootPhase, setBootPhase] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [showPreloader, setShowPreloader] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     return () => {
       document.body.style.cursor = "default"
     }
+  }, [])
+
+  useEffect(() => {
+    const updateMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    updateMobile()
+    window.addEventListener("resize", updateMobile)
+
+    return () => window.removeEventListener("resize", updateMobile)
   }, [])
 
   useEffect(() => {
@@ -1034,12 +1195,14 @@ export default function Home() {
         <div
           style={{
             position: "absolute",
-            top: "30px",
-            left: "34px",
+            top: isMobile ? "18px" : "30px",
+            left: isMobile ? "18px" : "34px",
             color: "white",
             zIndex: 20,
-            letterSpacing: "3px",
-            fontSize: "0.95rem",
+            letterSpacing: isMobile ? "1.8px" : "3px",
+            fontSize: isMobile ? "0.68rem" : "0.95rem",
+            maxWidth: isMobile ? "70vw" : "none",
+            lineHeight: 1.4,
             opacity: bootPhase < 2 ? 0 : selectedPlanet ? 0.35 : 0.8,
             transform: bootPhase < 2 ? "translateY(-10px)" : "translateY(0)",
             transition: "all 0.7s ease",
@@ -1051,14 +1214,24 @@ export default function Home() {
         <div
           style={{
             position: "absolute",
-            top: selectedPlanet ? "10%" : bootPhase < 2 ? "42%" : "38%",
+            top: selectedPlanet
+              ? isMobile
+                ? "9%"
+                : "10%"
+              : bootPhase < 2
+              ? isMobile
+                ? "39%"
+                : "42%"
+              : isMobile
+              ? "34%"
+              : "38%",
             left: "50%",
             transform: selectedPlanet
               ? "translateX(-50%) scale(0.96)"
               : bootPhase === 0
               ? "translateX(-50%) scale(0.94)"
               : "translateX(-50%) scale(1)",
-            width: "min(1200px, 92vw)",
+            width: isMobile ? "92vw" : "min(1200px, 92vw)",
             textAlign: "center",
             color: "white",
             zIndex: 10,
@@ -1069,9 +1242,11 @@ export default function Home() {
         >
           <div
             style={{
-              fontSize: "clamp(3.5rem, 8vw, 7rem)",
+              fontSize: isMobile
+                ? "clamp(2.3rem, 12vw, 3.8rem)"
+                : "clamp(3.5rem, 8vw, 7rem)",
               fontWeight: 700,
-              letterSpacing: "8px",
+              letterSpacing: isMobile ? "3px" : "8px",
               textTransform: "uppercase",
               textShadow: "0 0 28px rgba(255,0,0,0.18)",
               opacity: bootPhase >= 1 ? 1 : 0,
@@ -1085,18 +1260,19 @@ export default function Home() {
 
           <div
             style={{
-              fontSize: "clamp(1rem, 2vw, 1.4rem)",
-              marginTop: "18px",
+              fontSize: isMobile ? "0.8rem" : "clamp(1rem, 2vw, 1.4rem)",
+              marginTop: isMobile ? "14px" : "18px",
               color: "#89ff73",
-              letterSpacing: "2.5px",
+              letterSpacing: isMobile ? "1.2px" : "2.5px",
               textTransform: "uppercase",
+              padding: isMobile ? "0 6px" : "0",
+              lineHeight: isMobile ? 1.6 : 1.4,
               opacity: bootPhase >= 2 ? 1 : 0,
               transform: bootPhase >= 2 ? "translateY(0)" : "translateY(14px)",
               transition: "all 0.9s ease",
-              lineHeight: 1.4,
             }}
           >
-            Detecting breach conditions before technical compromise
+            Detecting when trusted users begin becoming the breach path
           </div>
         </div>
 
@@ -1104,13 +1280,14 @@ export default function Home() {
           <div
             style={{
               position: "absolute",
-              bottom: "34px",
-              left: "34px",
+              bottom: isMobile ? "18px" : "34px",
+              left: isMobile ? "18px" : "34px",
+              right: isMobile ? "18px" : "auto",
               zIndex: 20,
               color: "rgba(255,255,255,0.72)",
-              maxWidth: "420px",
-              fontSize: "0.95rem",
-              lineHeight: 1.6,
+              maxWidth: isMobile ? "unset" : "420px",
+              fontSize: isMobile ? "0.82rem" : "0.95rem",
+              lineHeight: 1.55,
               transition: "opacity 0.4s ease",
             }}
           >
@@ -1125,14 +1302,15 @@ export default function Home() {
             onClick={returnToSystem}
             style={{
               position: "absolute",
-              top: "30px",
-              right: "30px",
+              top: isMobile ? "16px" : "30px",
+              right: isMobile ? "16px" : "30px",
               zIndex: 30,
               background: "rgba(0,0,0,0.72)",
               color: "white",
               border: "1px solid rgba(255,255,255,0.25)",
-              borderRadius: "10px",
-              padding: "12px 18px",
+              borderRadius: isMobile ? "9px" : "10px",
+              padding: isMobile ? "10px 14px" : "12px 18px",
+              fontSize: isMobile ? "0.85rem" : "1rem",
               cursor: "pointer",
               backdropFilter: "blur(10px)",
               letterSpacing: "0.5px",
@@ -1147,13 +1325,15 @@ export default function Home() {
           <div
             style={{
               position: "absolute",
-              bottom: "34px",
+              bottom: isMobile ? "16px" : "34px",
               left: "50%",
               transform: "translateX(-50%)",
-              width: "min(980px, 92vw)",
+              width: isMobile ? "92vw" : "min(980px, 92vw)",
               background: "rgba(0,0,0,0.62)",
-              padding: "24px 26px",
-              borderRadius: "16px",
+              padding: isMobile ? "18px 16px" : "24px 26px",
+              borderRadius: isMobile ? "14px" : "16px",
+              maxHeight: isMobile ? "48vh" : "none",
+              overflowY: isMobile ? "auto" : "visible",
               color: "white",
               zIndex: 25,
               border: "1px solid rgba(255,255,255,0.16)",
@@ -1182,7 +1362,7 @@ export default function Home() {
 
               <div
                 style={{
-                  fontSize: "1.25rem",
+                  fontSize: isMobile ? "1.02rem" : "1.25rem",
                   fontWeight: 700,
                   letterSpacing: "1px",
                 }}
@@ -1193,11 +1373,12 @@ export default function Home() {
 
             <div
               style={{
-                fontSize: "0.92rem",
+                fontSize: isMobile ? "0.78rem" : "0.92rem",
                 letterSpacing: "1.2px",
                 textTransform: "uppercase",
                 color: "rgba(255,255,255,0.56)",
-                marginBottom: "16px",
+                marginBottom: isMobile ? "12px" : "16px",
+                lineHeight: 1.5,
               }}
             >
               {selectedPlanet.role}
@@ -1206,8 +1387,8 @@ export default function Home() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.2fr 1fr 1fr",
-                gap: "22px",
+                gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr 1fr",
+                gap: isMobile ? "16px" : "22px",
               }}
             >
               <div>
@@ -1336,10 +1517,10 @@ export default function Home() {
         )}
 
         <Canvas
-  dpr={[1, 1.5]}
-  gl={{ antialias: false }}
+          dpr={[1, 1.5]}
+          gl={{ antialias: false }}
           camera={{
-            position: [0, 0, 32],
+            position: isMobile ? [0, 0, 24] : [0, 0, 32],
             fov: 60,
           }}
           onPointerMissed={() => {
@@ -1357,11 +1538,26 @@ export default function Home() {
           <CameraFollow selectedPlanet={selectedPlanet} />
 
           <Nebula />
-          {!isLowEnd && <DeepSpaceBackground />}
+          {!isMobile && <DeepSpaceBackground />}
 
-          <StarField count={isLowEnd ? 4000 : 12000} spread={150} depth={0.01} size={0.2} />
-          <StarField count={isLowEnd ? 2500 : 8000} spread={300} depth={0.005} size={0.24} />
-          <StarField count={isLowEnd ? 1500 : 5000} spread={500} depth={0.001} size={0.28} />
+          <StarField
+            count={isMobile ? 4000 : 12000}
+            spread={150}
+            depth={0.01}
+            size={0.2}
+          />
+          <StarField
+            count={isMobile ? 2500 : 8000}
+            spread={300}
+            depth={0.005}
+            size={0.24}
+          />
+          <StarField
+            count={isMobile ? 1500 : 5000}
+            spread={500}
+            depth={0.001}
+            size={0.28}
+          />
 
           <PlanetSystem
             openModule={openModule}
@@ -1378,23 +1574,27 @@ export default function Home() {
             }}
             onEnd={() => setUserInteracting(false)}
             enableZoom={!selectedPlanet}
-            enablePan={true}
-            minDistance={5}
-            maxDistance={400}
+            enablePan={!isMobile}
+            minDistance={isMobile ? 10 : 5}
+            maxDistance={isMobile ? 120 : 400}
             enableDamping
             dampingFactor={0.05}
             autoRotate={
-  !isLowEnd && !selectedPlanet && !userInteracting && !hasUserTakenControl
-}
+              !isMobile &&
+              !selectedPlanet &&
+              !userInteracting &&
+              !hasUserTakenControl
+            }
             autoRotateSpeed={0.3}
           />
         </Canvas>
       </div>
+
       <section
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "42px 8vw 36px",
+          padding: isMobile ? "26px 6vw 20px" : "42px 8vw 36px",
         }}
       >
         <div
@@ -1402,8 +1602,10 @@ export default function Home() {
             maxWidth: "1180px",
             margin: "0 auto",
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "16px",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: isMobile ? "12px" : "16px",
           }}
         >
           {[
@@ -1471,11 +1673,12 @@ export default function Home() {
           ))}
         </div>
       </section>
+
       <section
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "72px 8vw 80px",
+          padding: isMobile ? "72px 6vw 56px" : "72px 8vw 80px",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%)",
@@ -1534,7 +1737,7 @@ export default function Home() {
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "20px 8vw 90px",
+          padding: isMobile ? "12px 6vw 54px" : "20px 8vw 90px",
         }}
       >
         <div
@@ -1542,22 +1745,24 @@ export default function Home() {
             maxWidth: "1180px",
             margin: "0 auto",
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(280px, 1fr))",
             gap: "18px",
           }}
         >
           {[
             {
               title: "Why Current Security Fails",
-              text: "Most systems assume users are rational, intent is stable, trust is binary, and behavior equals consent. In reality, users operate under pressure, fatigue, ambiguity, and degraded judgment long before a technical incident is visible.",
+              text: "Most systems detect breaches after compromise. They assume users are rational, intent is stable, and behavior equals consent. Reality does not cooperate.",
             },
             {
-              title: "Authorization Is Not Consent",
-              text: "Traditional controls recognize roles, permissions, and policy states. Prometheus models whether exercised permissions remain aligned with inferred human intent in context.",
+              title: "Prometheus Insight",
+              text: "Breaches begin when human intent and system actions drift out of alignment inside trusted workflows. That gap forms before traditional security tools react.",
             },
             {
-              title: "Pre-Breach Intelligence",
-              text: "Prometheus focuses on the conditions that form before compromise: behavioral drift, intent misalignment, decision degradation, and unknown consent emerging inside trusted workflows.",
+              title: "Security Outcome",
+              text: "Prometheus surfaces pre-breach conditions before technical compromise by measuring behavioral drift, intent mismatch, and consent degradation over time.",
             },
           ].map((item) => (
             <div
@@ -1600,7 +1805,212 @@ export default function Home() {
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "20px 8vw 110px",
+          padding: isMobile ? "12px 6vw 54px" : "10px 8vw 90px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "1.05fr 0.95fr",
+            gap: isMobile ? "18px" : "28px",
+            alignItems: "start",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: "0.9rem",
+                letterSpacing: "3px",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.46)",
+                marginBottom: "14px",
+              }}
+            >
+              Live Simulation
+            </div>
+
+            <div
+              style={{
+                fontSize: "clamp(1.8rem, 3vw, 2.8rem)",
+                fontWeight: 700,
+                lineHeight: 1.2,
+                marginBottom: "18px",
+                maxWidth: "760px",
+              }}
+            >
+              A demo that shows risk forming before the breach lands.
+            </div>
+
+            <div
+              style={{
+                fontSize: "1rem",
+                lineHeight: 1.8,
+                color: "rgba(255,255,255,0.76)",
+                maxWidth: "760px",
+                marginBottom: "20px",
+              }}
+            >
+              This simulation illustrates the Prometheus thesis: the risky moment
+              is not the compromise itself, but the sequence of behavioral and
+              intent changes that make compromise likely. Even as a demo, it
+              shows the operational story a CISO needs to understand.
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                gap: "12px",
+              }}
+            >
+              {[
+                "Baseline matched",
+                "Drift detected",
+                "Risk escalated before compromise",
+              ].map((item) => (
+                <div
+                  key={item}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: "14px",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.03)",
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <SimulationTerminal isMobile={isMobile} />
+        </div>
+      </section>
+
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: isMobile ? "12px 6vw 70px" : "20px 8vw 110px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.9rem",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.46)",
+              marginBottom: "14px",
+            }}
+          >
+            How Prometheus Works
+          </div>
+
+          <div
+            style={{
+              fontSize: "clamp(1.8rem, 3vw, 2.8rem)",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              marginBottom: "20px",
+              maxWidth: "880px",
+            }}
+          >
+            Behavior → Intent → Context → Consent Score → Risk Flag
+          </div>
+
+          <div
+            style={{
+              maxWidth: "920px",
+              fontSize: "1rem",
+              lineHeight: 1.8,
+              color: "rgba(255,255,255,0.76)",
+              marginBottom: "30px",
+            }}
+          >
+            Prometheus does not rely on mind-reading or surveillance theater. It
+            correlates behavior, inferred task continuity, contextual pressure,
+            and system interaction to estimate whether a user’s actions still
+            align with their original intent under current conditions.
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {[
+              {
+                title: "Behavioral Layer",
+                text: "Tracks user patterns like access timing, sequence flow, hesitation, reversals, and rhythm.",
+              },
+              {
+                title: "Intent Modeling",
+                text: "Infers whether the user’s current action path still matches expected task continuity and goal progression.",
+              },
+              {
+                title: "Context Engine",
+                text: "Weights pressure signals such as urgency, workload, ambiguity, and friction tolerance.",
+              },
+              {
+                title: "Consent Score",
+                text: "Combines all layers into a dynamic consent alignment score that drives a pre-breach risk flag.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "18px",
+                  padding: "22px",
+                  backdropFilter: "blur(14px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "1.02rem",
+                    fontWeight: 700,
+                    marginBottom: "10px",
+                  }}
+                >
+                  {item.title}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "0.96rem",
+                    lineHeight: 1.75,
+                    color: "rgba(255,255,255,0.74)",
+                  }}
+                >
+                  {item.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: isMobile ? "12px 6vw 70px" : "20px 8vw 110px",
         }}
       >
         <div
@@ -1645,8 +2055,8 @@ export default function Home() {
                 key={module.name}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "220px 1fr",
-                  gap: "22px",
+                  gridTemplateColumns: isMobile ? "1fr" : "220px 1fr",
+                  gap: isMobile ? "10px" : "22px",
                   alignItems: "start",
                   padding: "22px 0",
                   borderTop: "1px solid rgba(255,255,255,0.08)",
@@ -1712,7 +2122,7 @@ export default function Home() {
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "10px 8vw 130px",
+          padding: isMobile ? "10px 6vw 90px" : "10px 8vw 130px",
         }}
       >
         <div
@@ -1720,8 +2130,8 @@ export default function Home() {
             maxWidth: "1180px",
             margin: "0 auto",
             display: "grid",
-            gridTemplateColumns: "1.1fr 0.9fr",
-            gap: "32px",
+            gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr",
+            gap: isMobile ? "18px" : "32px",
             alignItems: "start",
           }}
         >
@@ -1755,6 +2165,7 @@ export default function Home() {
                 lineHeight: 1.85,
                 color: "rgba(255,255,255,0.76)",
                 maxWidth: "760px",
+                marginBottom: "18px",
               }}
             >
               A legitimate user did something they should not have. Prometheus
@@ -1762,6 +2173,34 @@ export default function Home() {
               them at the time? By modeling the gap between authorization and
               true consent alignment, it identifies human-system drift before
               technical compromise becomes visible.
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                gap: "14px",
+              }}
+            >
+              {[
+                "Detect risk before compromise",
+                "Reduce phishing and insider attack success",
+                "Surface high-risk sessions earlier",
+              ].map((item) => (
+                <div
+                  key={item}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {item}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1793,11 +2232,24 @@ export default function Home() {
                 fontSize: "1.05rem",
                 lineHeight: 1.8,
                 color: "rgba(255,255,255,0.82)",
+                marginBottom: "18px",
               }}
             >
               Prometheus detects when trusted interaction begins becoming
               breach-enabling by modeling consent as a dynamic alignment between
               human intent, cognition, context, and system action.
+            </div>
+
+            <div
+              style={{
+                fontSize: "0.94rem",
+                lineHeight: 1.8,
+                color: "rgba(255,255,255,0.7)",
+              }}
+            >
+              Execution protects this idea better than premature patent theater.
+              A working demo, a clear use-case, and a technical breakdown turn
+              Prometheus from philosophy into asset.
             </div>
           </div>
         </div>
